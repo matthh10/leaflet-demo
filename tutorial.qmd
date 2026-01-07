@@ -1,0 +1,284 @@
+---
+title: "How to make maps with {leaflet} in R"
+author: "Matthew Hoyle"
+format: 
+  html: 
+    toc: true
+editor: visual
+bibliography: references.bib
+
+fig-height: 6
+---
+
+## Overview
+
+Maps are often useful in public health to understand the spatial distribution of cases and identify clusters. The [{leaflet}](https://rstudio.github.io/leaflet/) package in R is useful for quickly creating interactive maps using free, open-source data [@leaflet].
+
+Using publicly available data on GP practices in Scotland and geographical data from the Scottish postcode directory, this tutorial will demonstrate how to produce basic maps using {leaflet} and outline some of the key features of the package.
+
+## Load Packages
+
+```{r}
+#| label: setup
+#| warning: false
+
+if(!require("pacman")) {
+  install.packages("pacman")
+}
+
+pacman::p_load(tidyverse, # For data wrangling and vis 
+               leaflet, # For making interactive 
+               phsopendata, # For gp data
+               phslookups, # For converting postcodes to coordinates
+               phmethods, # For formatting poscodes
+               janitor, # For cleaning data
+               purrr, # For working with lists
+               htmltools, glue) # For making nice labels
+
+```
+
+## Load in Data
+
+We will be using data from [{phsopendata}](https://public-health-scotland.github.io/phsopendata/) on GP locations and size in Scotland [@phsopendata].
+
+```{r}
+#| label: load-data
+#| warning: false
+
+gp_data <- phsopendata::get_dataset("gp-practice-contact-details-and-list-sizes") |> 
+  janitor::clean_names()  # Tidys column names
+
+glimpse(gp_data)
+```
+
+Some practices are duplicated so we will only keep one entry per practice code, keeping the entry with the largest list size.
+
+```{r}
+gp_data_filtered <- gp_data |> 
+  mutate(practice_code = as.factor(practice_code),
+         practice_list_size = as.numeric(practice_list_size)) |> 
+  group_by(practice_code) |> 
+  slice_max(practice_list_size, n = 1) |> 
+  ungroup()
+```
+
+## Extract geographic data
+
+The data set from {phsopendata} includes the postcode (`gp_data$postcode`) for each practice in Scotland. To plot each practice on a map, we must first convert these postcodes into map coordinates (latitude and longitude). We can do this using the Scottish postcode directory, which can be loaded into the R environment using [{phslookups}](https://github.com/Public-Health-Scotland/phslookups).
+
+```{r}
+#| eval: false
+remotes::install_github("Public-Health-Scotland/phslookups")
+```
+
+```{r}
+spd <- phslookups::get_spd()
+
+head(spd)
+```
+
+This loads in a `tibble` with columns on geographic metadata for each postcode in Scotland. Postcodes are shown in both the PC8 and PC7 format, for this analysis we use the PC8 format. To join this geographic data to our filtered GP data, we must first ensure that the `postcode` column in our dataset is in the correct format using `phsmethods::format_postcode()`. We can then use `dplyr::left_join()` to join the two data frames by the correctly formatted postcodes. We are only interested in the latitude and longitude columns from `spd`, so we can select the columns we will need and ignore the rest.
+
+```{r}
+
+geo_data <- gp_data_filtered |> 
+  select(practice_code, practice_list_size, gp_practice_name, postcode, gp_cluster) |> 
+  mutate(pc8 = phsmethods::format_postcode(postcode, format = "pc8")) |> # Ensure all postcodes are in PC8 format
+  left_join(
+    spd |> 
+      select(pc8, latitude, longitude, hb2019name), # Select required columns
+    join_by(pc8) # Join using the pc8 column
+  )
+
+```
+
+## Create map
+
+Now that we have a data frame with the coordinates and list size of each GP practice in Scotland, we can begin building a map.
+
+We will first create a map *widget* by calling the `leaflet()` function and piping that into `addTiles`, which by default load OpenStreetMap data into our map *widget* as a new *layer*. We can then set the map view to show Scotland and define an appropriate default zoom using `setView()`.
+
+```{r}
+m <- leaflet() |> # Create map widget
+  addTiles() |> # Add map tile layer (defaults to OSM)
+  setView(-4.57, 57.88, zoom = 6) # Geographical centre of Scotland
+
+m
+```
+
+OpenStreetMap provides open map data which is licensed under the [Open Data Commons Open Database License](https://opendatacommons.org/licenses/odbl/) (ODbL), which means you are free to copy, distribute, transmit and adapt their data, as long as you credit OpenStreetMap and its contributors. For more information, see: [OpenStreetMap - Copyright and Licence](https://www.openstreetmap.org/copyright/).
+
+### Add markers and popups
+
+We can add markers and popups to our map widget using `addMarkers` and `addPopups`:
+
+```{r}
+m |>  
+  addMarkers(lng = -4.2654064, 55.8614359)
+```
+
+Popups include the option to add text:
+
+```{r}
+m |>  
+  addPopups(lng = -4.2654064, lat = 55.8614359, popup = 'This is 177 Bothwell Street')
+```
+
+### Add GP practices
+
+We can use the geographical data we produced earlier to add a marker for each GP practice in Scotland:
+
+```{r}
+m |>
+  addMarkers(data = geo_data, # Data frame we produed earlier
+             lng = ~ longitude, # Column with longitude coordinates
+             lat = ~ latitude) # Column with latitude coordinates
+```
+
+Markers look a bit cluttered, so we can use circle markers instead:
+
+```{r}
+m |>
+  addCircleMarkers(data = geo_data,
+                   lng = ~ longitude,
+                   lat = ~ latitude,
+                   radius = 0.5, # Set size of markers
+                   opacity = 0.3) # Set opacity of markers
+```
+
+Still looks quite cluttered so we can set the `clusterOptions` argument to cluster markers by proximity:
+
+```{r}
+m |>
+  addMarkers(
+    data = geo_data,
+    lng = ~ longitude,
+    lat = ~ latitude,
+    clusterOptions = markerClusterOptions()
+  )
+```
+
+### Add labels
+
+Labels can also be added to markers using the `popup` argument inside `addMarkers()` :
+
+```{r}
+m |>
+  addMarkers(
+    data = geo_data,
+    lng = ~ longitude,
+    lat = ~ latitude,
+    clusterOptions = markerClusterOptions(),
+    popup = ~ gp_practice_name)
+```
+
+We can write a function to create labels with html formatting using {htmltools}:
+
+```{r}
+make_nice_label <- function(gp_practice_name, practice_list_size, hb2019name) {
+  name_label <- htmltools::span(
+    glue::glue('Practice name: {gp_practice_name}'),
+    style = htmltools::css(
+      font_weight = 600,
+      font_size = '16px'
+    )
+  )
+  size_label <- htmltools::span(
+    glue::glue('List size: {practice_list_size}'),
+    style = htmltools::css(
+      font_size = '14px'
+    )
+  )
+  hb_label <- htmltools::span(
+    glue::glue('Health board: {hb2019name}'),
+    style = htmltools::css(
+      font_size = '14px'
+    )
+  )
+  glue::glue('{name_label}<br>{size_label}<br>{hb_label}')
+}
+
+
+geo_data_labeled <- geo_data |> 
+  mutate(nice_label = pmap(
+           list(
+             gp_practice_name, practice_list_size, hb2019name
+           ),
+           make_nice_label
+         ))
+
+m |>
+  addMarkers(
+    data = geo_data_labeled,
+    lng = ~ longitude,
+    lat = ~ latitude,
+    clusterOptions = markerClusterOptions(), 
+    clusterId = "GP Practices",
+    popup = ~nice_label
+    )
+```
+
+### Conditional markers
+
+We can also include conditional formatting for markers. These can work on continuous variables such as `practice_list_size`:
+
+```{r}
+geo_data_big <- geo_data |> 
+  filter(practice_list_size >= 10000) # Filter for only large practices
+
+pal_list_size <- colorNumeric(palette = "viridis", domain = c(0, max(geo_data_big$practice_list_size)))
+
+m |>
+  addCircleMarkers(
+    data = geo_data_big,
+    lng = ~ longitude,
+    lat = ~ latitude,
+    stroke = FALSE,
+    fillOpacity = 0.8,
+    radius = 6,
+    color = ~ pal_list_size(practice_list_size)
+  ) |>
+  addLegend(
+    data = geo_data_big,
+    position = "bottomright",
+    pal = pal_list_size,
+    values = ~ practice_list_size,
+    title = "Practice list size",
+    opacity = 1
+  )
+
+```
+
+We can also use categorical variables to create conditional markers. To demonstrate this, we can create a new column called `size_group` which divides practices into discrete groups based on `practice_list_size` :
+
+```{r}
+size_breaks <- c(0, 5000, 10000, 15000, Inf)
+size_labels <- c("<5000", "5000-10,000", "10,000-15,000", ">15,000")
+
+geo_data_grouped <- geo_data |> 
+  filter(!is.na(practice_list_size),
+         practice_list_size > 0) |> # Only keep practices with list size 
+  mutate(size_group = cut(practice_list_size, breaks = size_breaks, labels = size_labels)) |> # Create new discrete groups for practice size
+slice_sample(n = 100) # Keep only 100 practices for plotting
+
+pal_size_group <- colorFactor(palette = c("green", "yellow", "orange", "red"), levels = levels(geo_data_grouped$size_group))
+
+m |>
+  addCircleMarkers(
+    data = geo_data_grouped,
+    lng = ~ longitude,
+    lat = ~ latitude,
+    stroke = FALSE,
+    fillOpacity = 0.6,
+    radius = 6,
+    color = ~ pal_size_group(size_group)
+  ) |> 
+  addLegend(
+    data = geo_data_grouped,
+    position = "bottomright",
+    pal = pal_size_group,
+    values = ~ size_group,
+    title = "Practice list size",
+    opacity = 1
+  )
+```
