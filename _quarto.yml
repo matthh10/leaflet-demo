@@ -1,0 +1,17 @@
+project:
+  type: website
+  output-dir: docs
+
+website:
+  title: "Leaflet in R"
+  navbar:
+    left:
+      - href: tutorial.qmd
+        text: Tutorial
+
+format:
+  html:
+    theme: cosmo
+    toc: true
+
+editor: visual
