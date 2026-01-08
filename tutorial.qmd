@@ -14,7 +14,7 @@ fig-height: 6
 
 Maps are often useful in public health to understand the spatial distribution of cases and identify clusters. The [{leaflet}](https://rstudio.github.io/leaflet/) package in R is useful for quickly creating interactive maps using free, open-source data [@leaflet].
 
-Using publicly available data on GP practices in Scotland and geographical data from the Scottish postcode directory, this tutorial will demonstrate how to produce basic maps using {leaflet} and outline some of the key features of the package.
+Using publicly available data on GP practices in Scotland and geographical data from the Scottish postcode directory, this tutorial will demonstrate how to produce basic maps using {leaflet} and outline some key features of the package.
 
 ## Load Packages
 

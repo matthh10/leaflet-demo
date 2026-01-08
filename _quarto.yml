@@ -8,6 +8,8 @@ website:
     left:
       - href: tutorial.qmd
         text: Tutorial
+      - href: slides.qmd
+        text: Slides
     right: 
       - icon: github
         href: https://github.com/matthh10/leaflet-demo
