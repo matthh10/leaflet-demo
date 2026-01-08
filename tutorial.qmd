@@ -282,3 +282,15 @@ m |>
     opacity = 1
   )
 ```
+
+## Recap
+
+- Leaflet is an open and free to use package (as long as you credit the contributors) that can be used to make maps in R
+- `addMarkers` can be used to tag locations of interest
+- `addPopups` can be used to add text to marked locations
+- `colourFactor` and `colourNumeric` can be used to add conditional formatting to markers
+
+Thanks for following along and go give it a go yourself!
+
+
+

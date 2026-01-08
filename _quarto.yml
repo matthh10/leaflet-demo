@@ -17,7 +17,9 @@ website:
 
 format:
   html:
-    theme: cosmo
+    theme:
+      light: cosmo
+      dark: solar
     toc: true
 
 editor: visual
