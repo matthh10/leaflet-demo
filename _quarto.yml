@@ -8,6 +8,10 @@ website:
     left:
       - href: tutorial.qmd
         text: Tutorial
+    right: 
+      - icon: github
+        href: https://github.com/matthh10/leaflet-demo
+        aria-label: GitHub
 
 format:
   html:
