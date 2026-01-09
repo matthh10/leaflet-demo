@@ -11,7 +11,7 @@ bibliography: references.bib
 
 ## Overview
 
-Maps are often useful in public health to understand the spatial distribution of cases and identify clusters. 
+Maps are often useful in public health to understand the spatial distribution of cases and identify clusters.
 
 <br>
 
@@ -33,7 +33,7 @@ if(!require("pacman")) {
 }
 
 pacman::p_load(tidyverse, # For data wrangling and vis 
-               leaflet, # For making interactive 
+               leaflet, # For making interactive maps
                phsopendata, # For gp data
                phslookups, # For converting postcodes to coordinates
                phmethods, # For formatting poscodes
@@ -90,15 +90,14 @@ We can do this using the Scottish postcode directory, which can be loaded into t
 ```{r}
 
 spd <- phslookups::get_spd()  
-head(spd)
+glimpse(spd)
 ```
 :::
 :::::
 
 ## 
 
-
-This loads in a `tibble` with columns on geographic metadata for each postcode in Scotland. 
+This loads in a `tibble` with columns on geographic metadata for each postcode in Scotland.
 
 <br>
 
@@ -120,7 +119,6 @@ geo_data <- gp_data_filtered |>
   )
 
 ```
-
 
 ## Create map {.smaller}
 
@@ -155,8 +153,7 @@ m |>
   addMarkers(lng = -4.2654064, 55.8614359)
 ```
 
-
-## {.smaller}
+##  {.smaller}
 
 Popups include the option to add text:
 
@@ -164,7 +161,6 @@ Popups include the option to add text:
 m |>  
   addPopups(lng = -4.2654064, lat = 55.8614359, popup = 'This is 177 Bothwell Street')
 ```
-
 
 ## Add GP practices {.smaller}
 
@@ -177,8 +173,7 @@ m |>
              lat = ~ latitude) # Column with latitude coordinates
 ```
 
-
-## {.smaller}
+##  {.smaller}
 
 Markers look a bit cluttered, so we can use circle markers instead:
 
@@ -191,8 +186,7 @@ m |>
                    opacity = 0.3) # Set opacity of markers
 ```
 
-
-## {.smaller}
+##  {.smaller}
 
 Still looks quite cluttered so we can set the `clusterOptions` argument to cluster markers by proximity:
 
@@ -206,8 +200,7 @@ m |>
   )
 ```
 
-
-v## Add labels {.smaller}
+## Add labels {.smaller}
 
 Labels can also be added to markers using the `popup` argument inside `addMarkers()` :
 
@@ -221,8 +214,7 @@ m |>
     popup = ~ gp_practice_name)
 ```
 
-
-## {.smaller}
+##  {.smaller}
 
 We can write a function to create labels with html formatting using {htmltools}:
 
@@ -259,11 +251,9 @@ geo_data_labeled <- geo_data |>
          ))
 ```
 
-
 ## {.smaller}
 
 ```{r}
-#| output-location: column
 m |>
   addMarkers(
     data = geo_data_labeled,
@@ -274,7 +264,6 @@ m |>
     popup = ~nice_label
     )
 ```
-
 
 ## Conditional markers {.smaller}
 
@@ -287,8 +276,7 @@ geo_data_big <- geo_data |>
 pal_list_size <- colorNumeric(palette = "viridis", domain = c(0, max(geo_data_big$practice_list_size)))
 ```
 
-
-## {.smaller .scrollable}
+##  {.smaller .scrollable}
 
 ```{r}
 m |>
@@ -312,8 +300,7 @@ m |>
 
 ```
 
-
-## {.smaller .scrollable}
+##  {.smaller .scrollable}
 
 We can also use categorical variables to create conditional markers. To demonstrate this, we can create a new column called `size_group` which divides practices into discrete groups based on `practice_list_size` :
 
@@ -335,8 +322,7 @@ pal_size_group <- colorFactor(
 )
 ```
 
-
-## {.smaller .scrollable}
+##  {.smaller .scrollable}
 
 ```{r}
 m |>
@@ -359,18 +345,16 @@ m |>
   )
 ```
 
-
 ## Recap {.smaller}
 
-- Leaflet is an open and free to use package (as long as you credit the contributors) that can be used to make maps in R
-- `addMarkers` can be used to tag locations of interest
-- `addPopups` can be used to add text to marked locations
-- `colourFactor` and `colourNumeric` can be used to add conditional formatting to markers
+-   Leaflet is an open and free to use package (as long as you credit the contributors) that can be used to make maps in R
+-   `addMarkers` can be used to tag locations of interest
+-   `addPopups` can be used to add text to marked locations
+-   `colourFactor` and `colourNumeric` can be used to add conditional formatting to markers
 
 <br><br>
 
 Thanks for following along and go give it a go yourself!
-
 
 ## References {.smaller .scrollable}
 
