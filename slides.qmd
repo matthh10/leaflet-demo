@@ -1,7 +1,9 @@
 ---
 title: "How to make maps with {leaflet} in R"
 author: "Matthew Hoyle"
-format: revealjs
+format: 
+  revealjs:
+    theme: simple
     
 warning: false
 echo: true
@@ -251,7 +253,7 @@ geo_data_labeled <- geo_data |>
          ))
 ```
 
-## {.smaller}
+##  {.smaller}
 
 ```{r}
 m |>
